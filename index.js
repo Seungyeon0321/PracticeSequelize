@@ -1,8 +1,10 @@
 const Sequelize = require("sequelize");
 const { DataTypes, Op } = Sequelize;
+const bcrypt = require("bcrypt");
+const zlib = require("zlib");
 
 //여기 매개변수는 우리가 만든 db의 이름과 동일해야 한다
-const sequelize = new Sequelize("sequelize-video", "root", "password", {
+const sequelize = new Sequelize("sequelize-video", "root", "Emrehsdl12#", {
   dialect: "mysql",
   // define: {
   //   freezeTableName: true,
@@ -126,85 +128,186 @@ const User = sequelize.define(
 //   });
 
 ////////////////////////query////////////////////////////////////
-User.sync({ alter: true })
+// User.sync({ alter: true })
+//   .then(() => {
+//     //특정 attributes의 정보만 얻을 수 있음
+//     // return User.findAll({
+//     //   attributes: [
+//     //     ["username", "myName"],
+//     //     ["password", "pwd"],
+//     //   ],
+//     // });
+
+//     //만약에 해당 데이터에서 AVG와 SUM을 하고 싶을때는 아래와 같이하면 된다
+//     //attributes는 복수로 써야 한다
+
+//     /////////////////////////FIND DATA/////////////////////////////
+//     // return User.findAll({
+//     //   // attributes: [[sequelize.fn("AVG", sequelize.col("age")), "howOld"]],
+//     //   ///////exclude
+//     //   // attributes: { exclude: ["password"] },
+//     //   ///////where 더 찾고 싶은 필터가 있으면 where에 더 넣어주면 된다
+//     //   // attributes: ["username"],
+//     //   // where: { age: 25 },
+//     //   //////limit 라고 하면 처음 두개만 보여준다
+//     //   // limit: 2,
+//     //   //////Order age를 기준으로 큰 순서가 위로 오도록 설정, (ASC, DESC) 사용가능
+//     //   // order: [["age", "DESC"]],
+//     //   //해당 group은 username과 sum_age를 그룹으로 보여준다?
+//     //   // attributes: [
+//     //   //   "username",
+//     //   //   [sequelize.fn("SUM", sequelize.col("age")), "sum_age"],
+//     //   // ],
+//     //   // group: "username",
+//     //   ///op사용 방법 만약 username이 pizza이며 age가 몇살? 같은 특정 요소를 찾는 method는 Op를 사용한다, 이 경우에는 두개의 조건이 충족되는 것이 아니라 둘중에 하나만 해당되면 해당 결과를 리턴해준다, 만약 둘다 충족되는 것을 찾을 때는 Op.and를 사용해야 한다, 하지만 이 경우에는 이렇게 코딩해도 괜찮다 where : {username: 'soccer', age: 45}
+//     //   // where: { [Op.or]: { username: "pizza", age: 21 } },
+
+//     //   //// 숫자 크거나 작거나를 찾을 때 사용할 수 있는 코드, age가 25보다 많은것을 이렇게 표현한다,
+//     //   // where: { age: { [Op.gt]: 25 } },
+
+//     //   // 좀더 복잡한 조건을 만들 떄는 아래와 같이 만든다
+//     //   // where: {
+//     //   //   age: {
+//     //   //     [Op.or]: {
+//     //   //       [Op.lt]: 21,
+//     //   //       [Op.eq]: null,
+//     //   //     }
+//     //   //   }
+//     //   // }
+
+//     //   //그럼 만약 우리 data중에 6개의 글자를 가진 데이터를 찾고 싶을 때는 어떻게 해야 할까? 아래와 같이 하면 할 수 있다
+//     //   where: sequelize.where(
+//     //     sequelize.fn("char_length", sequelize.col("username")),
+//     //     5
+//     //   ),
+//     // });
+
+//     ///////////////////////////////UPDATE DATA//////////////////////////////
+//     //이렇게 코딩을 하게 되면 username을 Yes!로 바꾸는데 에이지가 1살 보다 많은 녀석들은 코드를 바꾸겠다는 소리임
+//     //   return User.update(
+//     //     {
+//     //       username: "Yes!",
+//     //     },
+//     //     {
+//     //       where: {
+//     //         age: {
+//     //           [Op.gt]: 1,
+//     //         },
+//     //       },
+//     //     }
+//     //   );
+//     // })
+
+//     /////////////////////////////////DELETE////////////////////////////////
+//     //만약 다 지우고 싶다면 truncate: true로 하면 된다
+//     return User.destroy({
+//       where: { username: "Yes!" },
+//     });
+//   })
+//   .then((data) => {
+//     console.log(data);
+//   })
+//   .catch((err) => {
+//     console.log(err);
+//   });
+
+/////////////////Create Table//////////////////
+const Student = sequelize.define("students", {
+  student_id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true,
+  },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+    validate: {
+      len: [4, 20],
+    },
+    //이렇게 get method를 이용해서 유저 이름을 계속 capital로 바꿀 수 있다.
+    //여기서 주의할 점은 이는 data 자체를 바꾸는 것은 아니고 데이터가 display되는
+    //걸 바꾸는 것 뿐이다
+    get() {
+      //여기서 rawValue = this.name을 해버리면 infinity loop에 빠지게 될 것이다.
+      const rawValue = this.getDataValue("name");
+      return rawValue;
+    },
+    //setter은 hash the password that is being stored 할 때 유용하게 쓸 수 있다
+  },
+  // sequelize에서는 열을 추가할 때는 마이그레이션을 통해 수행해야 한다
+  // password: {
+  //   type: DataTypes.STRING,
+  //   set(value) {
+  //     const salt = bcrypt.genSaltSync(12);
+  //     const hash = bcrypt.hashSync(value, salt);
+  //     this.setDataValue("password", hash);
+  //   },
+  // },
+  favorite_class: {
+    type: DataTypes.STRING(25),
+    defaultValue: "Computer science",
+  },
+  school_year: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+  },
+  subscribed_to_wittcode: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true,
+  },
+  description: {
+    type: DataTypes.STRING,
+  },
+});
+
+Student.sync({ alert: true })
   .then(() => {
-    //특정 attributes의 정보만 얻을 수 있음
-    // return User.findAll({
-    //   attributes: [
-    //     ["username", "myName"],
-    //     ["password", "pwd"],
-    //   ],
+    // return Student.findAll();
+    //원래는 이렇게 findAll로 query를 하게 되면 해당 data에서 필요한 데이터뿐만 아니라 다른 이상한 데이터도 출력하기 때문에 아래와 같이 toJSON()을 이용해야 한다, 하지만 raw라는 method를 쓰게 되면 이러한 작업은 필요없게 된다
+    // return Student.findAll({
+    //   where: { name: "Seungyeon Ji" },
+    //   raw: true,
     // });
-
-    //만약에 해당 데이터에서 AVG와 SUM을 하고 싶을때는 아래와 같이하면 된다
-    //attributes는 복수로 써야 한다
-
-    /////////////////////////FIND DATA/////////////////////////////
-    // return User.findAll({
-    //   // attributes: [[sequelize.fn("AVG", sequelize.col("age")), "howOld"]],
-    //   ///////exclude
-    //   // attributes: { exclude: ["password"] },
-    //   ///////where 더 찾고 싶은 필터가 있으면 where에 더 넣어주면 된다
-    //   // attributes: ["username"],
-    //   // where: { age: 25 },
-    //   //////limit 라고 하면 처음 두개만 보여준다
-    //   // limit: 2,
-    //   //////Order age를 기준으로 큰 순서가 위로 오도록 설정, (ASC, DESC) 사용가능
-    //   // order: [["age", "DESC"]],
-    //   //해당 group은 username과 sum_age를 그룹으로 보여준다?
-    //   // attributes: [
-    //   //   "username",
-    //   //   [sequelize.fn("SUM", sequelize.col("age")), "sum_age"],
-    //   // ],
-    //   // group: "username",
-    //   ///op사용 방법 만약 username이 pizza이며 age가 몇살? 같은 특정 요소를 찾는 method는 Op를 사용한다, 이 경우에는 두개의 조건이 충족되는 것이 아니라 둘중에 하나만 해당되면 해당 결과를 리턴해준다, 만약 둘다 충족되는 것을 찾을 때는 Op.and를 사용해야 한다, 하지만 이 경우에는 이렇게 코딩해도 괜찮다 where : {username: 'soccer', age: 45}
-    //   // where: { [Op.or]: { username: "pizza", age: 21 } },
-
-    //   //// 숫자 크거나 작거나를 찾을 때 사용할 수 있는 코드, age가 25보다 많은것을 이렇게 표현한다,
-    //   // where: { age: { [Op.gt]: 25 } },
-
-    //   // 좀더 복잡한 조건을 만들 떄는 아래와 같이 만든다
-    //   // where: {
-    //   //   age: {
-    //   //     [Op.or]: {
-    //   //       [Op.lt]: 21,
-    //   //       [Op.eq]: null,
-    //   //     }
-    //   //   }
-    //   // }
-
-    //   //그럼 만약 우리 data중에 6개의 글자를 가진 데이터를 찾고 싶을 때는 어떻게 해야 할까? 아래와 같이 하면 할 수 있다
-    //   where: sequelize.where(
-    //     sequelize.fn("char_length", sequelize.col("username")),
-    //     5
-    //   ),
+    //findByPk(find by using primary key)
+    // return Student.findByPk(2);
+    //findOne() 한개만 찾는다, 가장 위에 있는 녀석으로
+    //findOrCreate() 만약 해당 조건의 충족하는 row가 있으면 찾고 없으면 만든다
+    //찾는 조건에 맞는 녀석을 모두 리턴하되 그리고 그 리턴된 녀석의 숫자까지 세어준다
+    //findAndCountAll() => data에서 count라는 객체를 반환하여 그것을 디스트럭트 해서 사용할 수 있게 해준다
+    // return Student.create({
+    //   name: "hello kim",
+    //   school_year: 5,
+    //   description: "hello",
     // });
-
-    ///////////////////////////////UPDATE DATA//////////////////////////////
-    //이렇게 코딩을 하게 되면 username을 Yes!로 바꾸는데 에이지가 1살 보다 많은 녀석들은 코드를 바꾸겠다는 소리임
-    //   return User.update(
-    //     {
-    //       username: "Yes!",
-    //     },
-    //     {
-    //       where: {
-    //         age: {
-    //           [Op.gt]: 1,
-    //         },
-    //       },
-    //     }
-    //   );
-    // })
-
-    /////////////////////////////////DELETE////////////////////////////////
-    //만약 다 지우고 싶다면 truncate: true로 하면 된다
-    return User.destroy({
-      where: { username: "Yes!" },
-    });
   })
   .then((data) => {
-    console.log(data);
+    //만약 data가 새로 생성되었다면 created는 true를 리턴할 것이고 아니면 false를 리턴하게 될 것이다. 실제로 데이터 생성 유무를 확인할 때 유용하게 쓸 수 있음.
+    // const { count, rows } = data;
+    // console.log(count);
+    // console.log(rows);
   })
   .catch((err) => {
     console.log(err);
   });
+
+//어떻게 create를 쓰는지 모름, 여러 데이터의 경우에는 bulkCreate()의 method를 사용해야 한다
+
+//만약 data를 query하게 되면 같은 sync함수에 then을 붙여서 가지고 와야 하냐, 아니면 같은 scop에서 가지고 와야 하나
+
+//추가를 하고 추가한 녀석의 로직을 삭제한 후 그 안에 query가 들어가는 거임
+
+//setter과 getter을 같이 쓸 데 유용한 것은 compression 하고 uncompression과 같은 작업을 수행할 때인데 만약 내용이 긴 posting과 같은 작업을 수행할때 해당 데이터는 길기 때문에 compression을 setter으로 설정하고 uncompression으로 해당 데이터를 원래대로 돌려놔서 data을 back할 수 있도록 하는 것이다 => 모듈 zlib을 사용한다
+
+///////이게 compress의 예제 코드이다/////////
+// description: {
+//   type: DataTypes.STRING,
+//   set(value) {
+//     const compressed = zlib.deflateSync(value).toString('base64');
+//     this.setDataValue('description', compressed)
+//   },
+// get() {
+//   const value = this.getDataValue('description');
+//   const uncompressed = zlib.inflateSync(Buffer.from(value, 'base64'))
+//   return uncompressed.toString()
+// }
+// }
