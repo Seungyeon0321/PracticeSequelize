@@ -130,13 +130,13 @@ const User = sequelize.define(
 ////////////////////////query////////////////////////////////////
 // User.sync({ alter: true })
 //   .then(() => {
-//     //특정 attributes의 정보만 얻을 수 있음
-//     // return User.findAll({
-//     //   attributes: [
-//     //     ["username", "myName"],
-//     //     ["password", "pwd"],
-//     //   ],
-//     // });
+//     특정 attributes의 정보만 얻을 수 있음
+//     return User.findAll({
+//       attributes: [
+//         ["username", "myName"],
+//         ["password", "pwd"],
+//       ],
+//     });
 
 //     //만약에 해당 데이터에서 AVG와 SUM을 하고 싶을때는 아래와 같이하면 된다
 //     //attributes는 복수로 써야 한다
@@ -311,3 +311,4 @@ Student.sync({ alert: true })
 //   return uncompressed.toString()
 // }
 // }
+
